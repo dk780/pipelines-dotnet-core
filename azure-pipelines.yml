@@ -5,13 +5,49 @@
 
 trigger:
 - master
-
+ 
 pool:
-  vmImage: ubuntu-latest
-
+Self-Hosted Linux Agent
+ 
+stages:
+- stage: Build_Stage
+displayName: 
+jobs:
+  - job: BuildNuget
+displayName: Build Nuget packages
 variables:
-  buildConfiguration: 'Release'
-
+BuildConfiguration: release
 steps:
-- script: dotnet build --configuration $(buildConfiguration)
-  displayName: 'dotnet build $(buildConfiguration)'
+ 
+    - task: DotNetCoreCLI@2
+inputs:
+command: 'restore'
+projects: '**/*.csproj'
+feedsToUse: 'select'
+
+    - task: DotNetCoreCLI@2
+inputs:
+command: 'build'
+projects: '**/*.csproj'
+arguments: '--configuration $(BuildConfiguration)'
+
+    - task: DotNetCoreCLI@2
+displayName: Publish
+inputs:
+command: publish
+publishWebProjects: True
+arguments: '--configuration $(BuildConfiguration) --output $(build.artifactstagingdirectory)'
+zipAfterPublish: True
+
+    - task: CopyFiles@2
+inputs:
+SourceFolder: 'TerraformInfra'
+Contents: '**'
+TargetFolder: '$(build.artifactstagingdirectory)'
+
+    - task: PublishBuildArtifacts@1
+displayName: 'Publish Artifact'
+inputs:
+PathtoPublish: '$(build.artifactstagingdirectory)'
+ArtifactName: drop
+condition: succeededOrFailed()
